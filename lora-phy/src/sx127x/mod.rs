@@ -36,10 +36,10 @@ const SX1276_RF_MID_BAND_THRESH: u32 = 525_000_000;
 const FXOSC_HZ: i64 = 32_000_000;
 
 // Converts a raw (sign-extended) FEI register value into a frequency error in Hz,
-// per SX1276 datasheet section 4.1.5: error_hz = fei_raw * FXOSC / 2^24 * (bandwidth_hz / 500000)
+// per SX1276 datasheet section 4.1.5
 // Computed with i128 intermediates (single division) to avoid both overflow and premature truncation.
 fn fei_to_freq_error_hz(fei_raw: i32, bandwidth_in_hz: u32) -> i32 {
-    ((fei_raw as i128 * FXOSC_HZ as i128 * bandwidth_in_hz as i128) / ((1i128 << 24) * 500_000)) as i32
+    ((fei_raw as i128 * (1i128 << 24) * bandwidth_in_hz as i128) / (FXOSC_HZ as i128 * 500_000)) as i32
 }
 
 /// Configuration for SX127x-based boards
@@ -404,9 +404,16 @@ where
     async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<i32, RadioError> {
         let mut buf = [0u8; 3];
         self.read_buffer(Register::RegFreqErrorMsb, &mut buf).await?;
-        // 3-byte two's complement value; MSB's reserved upper bits mirror the sign bit in hardware
-        let raw = ((buf[0] as i8 as i32) << 16) | ((buf[1] as i32) << 8) | (buf[2] as i32);
-        Ok(fei_to_freq_error_hz(raw, u32::from(bandwidth)))
+
+        // Interpret as 20-bit two's complement value
+        let fei_raw: u32 = ((buf[0] as u32 & 0x0F) << 16) | ((buf[1] as u32) << 8) | (buf[2] as u32);
+        let fei_signed: i32 = if fei_raw & 0x0008_0000 != 0 {
+            (fei_raw | 0xFFF0_0000) as i32
+        } else {
+            fei_raw as i32
+        };
+
+        Ok(fei_to_freq_error_hz(fei_signed, u32::from(bandwidth)))
     }
 
     async fn do_cad(&mut self, _mdltn_params: &ModulationParams) -> Result<(), RadioError> {
