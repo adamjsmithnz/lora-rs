@@ -94,6 +94,12 @@ pub trait RadioKind {
     ) -> Result<u8, RadioError>;
     /// Get the RSSI and SNR for the packet made available as the result of a receive operation
     async fn get_rx_packet_status(&mut self) -> Result<PacketStatus, RadioError>;
+    /// Get the frequency error (in Hz) of the last received packet, given the
+    /// channel bandwidth it was received with. Only supported on sx127x-family chips;
+    /// other chip kinds inherit this default and return `FrequencyErrorUnsupported`.
+    async fn get_frequency_error(&mut self, _bandwidth: Bandwidth) -> Result<i32, RadioError> {
+        Err(RadioError::FrequencyErrorUnsupported)
+    }
     /// Perform a channel activity detection operation
     async fn do_cad(&mut self, mdltn_params: &ModulationParams) -> Result<(), RadioError>;
     /// Set the LoRa chip to provide notification of specific events based on radio state

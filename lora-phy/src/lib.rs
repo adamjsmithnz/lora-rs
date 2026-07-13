@@ -276,6 +276,15 @@ where
         }
     }
 
+    /// Get the frequency error (in Hz) of the last received packet, given the
+    /// bandwidth it was received with.
+    ///
+    /// Only supported on sx127x-family chips; returns
+    /// [`RadioError::FrequencyErrorUnsupported`] otherwise.
+    pub async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<i32, RadioError> {
+        self.radio_kind.get_frequency_error(bandwidth).await
+    }
+
     /// Prepare the Semtech chip for a channel activity detection operation
     pub async fn prepare_for_cad(&mut self, mdltn_params: &ModulationParams) -> Result<(), RadioError> {
         self.prepare_modem(mdltn_params).await?;

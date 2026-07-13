@@ -33,6 +33,15 @@ const SX1276_RSSI_OFFSET_LF: i16 = -164;
 const SX1276_RSSI_OFFSET_HF: i16 = -157;
 const SX1276_RF_MID_BAND_THRESH: u32 = 525_000_000;
 
+const FXOSC_HZ: i64 = 32_000_000;
+
+// Converts a raw (sign-extended) FEI register value into a frequency error in Hz,
+// per SX1276 datasheet section 4.1.5: error_hz = fei_raw * FXOSC / 2^24 * (bandwidth_hz / 500000)
+// Computed with i128 intermediates (single division) to avoid both overflow and premature truncation.
+fn fei_to_freq_error_hz(fei_raw: i32, bandwidth_in_hz: u32) -> i32 {
+    ((fei_raw as i128 * FXOSC_HZ as i128 * bandwidth_in_hz as i128) / ((1i128 << 24) * 500_000)) as i32
+}
+
 /// Configuration for SX127x-based boards
 pub struct Config<C: Sx127xVariant> {
     /// LoRa chip used on specific board
@@ -392,6 +401,14 @@ where
         Ok(PacketStatus { rssi, snr })
     }
 
+    async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<i32, RadioError> {
+        let mut buf = [0u8; 3];
+        self.read_buffer(Register::RegFreqErrorMsb, &mut buf).await?;
+        // 3-byte two's complement value; MSB's reserved upper bits mirror the sign bit in hardware
+        let raw = ((buf[0] as i8 as i32) << 16) | ((buf[1] as i32) << 8) | (buf[2] as i32);
+        Ok(fei_to_freq_error_hz(raw, u32::from(bandwidth)))
+    }
+
     async fn do_cad(&mut self, _mdltn_params: &ModulationParams) -> Result<(), RadioError> {
         self.intf.iv.enable_rf_switch_rx().await?;
 
@@ -537,5 +554,22 @@ where
     /// Set the LoRa chip into the TxContinuousWave mode
     async fn set_tx_continuous_wave_mode(&mut self) -> Result<(), RadioError> {
         C::set_tx_continuous_wave_mode(self).await
+    }
+}
+
+#[test]
+fn test_fei_to_freq_error_hz() {
+    const DELTA: f64 = 1.0;
+    for bandwidth_in_hz in [7_800u32, 125_000, 250_000, 500_000] {
+        for fei_raw in [-500_000i32, -1000, -1, 0, 1, 1000, 500_000] {
+            let float_error =
+                fei_raw as f64 * (FXOSC_HZ as f64) / (1u32 << 24) as f64 * (bandwidth_in_hz as f64 / 500_000.0);
+            let approx_error = fei_to_freq_error_hz(fei_raw, bandwidth_in_hz);
+            let error = float_error - approx_error as f64;
+            assert!(
+                error.abs() < DELTA,
+                "fei_raw={fei_raw}, bandwidth_in_hz={bandwidth_in_hz}"
+            );
+        }
     }
 }
