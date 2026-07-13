@@ -29,6 +29,7 @@ pub enum RadioError {
     ReceiveTimeout,
     DutyCycleUnsupported,
     RngUnsupported,
+    FrequencyErrorUnsupported,
 }
 
 /// Status for a received packet
