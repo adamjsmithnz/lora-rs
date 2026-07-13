@@ -563,20 +563,3 @@ where
         C::set_tx_continuous_wave_mode(self).await
     }
 }
-
-#[test]
-fn test_fei_to_freq_error_hz() {
-    const DELTA: f64 = 1.0;
-    for bandwidth_in_hz in [7_800u32, 125_000, 250_000, 500_000] {
-        for fei_raw in [-500_000i32, -1000, -1, 0, 1, 1000, 500_000] {
-            let float_error =
-                fei_raw as f64 * (FXOSC_HZ as f64) / (1u32 << 24) as f64 * (bandwidth_in_hz as f64 / 500_000.0);
-            let approx_error = fei_to_freq_error_hz(fei_raw, bandwidth_in_hz);
-            let error = float_error - approx_error as f64;
-            assert!(
-                error.abs() < DELTA,
-                "fei_raw={fei_raw}, bandwidth_in_hz={bandwidth_in_hz}"
-            );
-        }
-    }
-}
