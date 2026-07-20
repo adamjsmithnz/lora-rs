@@ -281,7 +281,7 @@ where
     ///
     /// Only supported on sx127x-family chips; returns
     /// [`RadioError::FrequencyErrorUnsupported`] otherwise.
-    pub async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<i32, RadioError> {
+    pub async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<(u32, i32), RadioError> {
         self.radio_kind.get_frequency_error(bandwidth).await
     }
 

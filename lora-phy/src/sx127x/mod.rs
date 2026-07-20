@@ -401,7 +401,7 @@ where
         Ok(PacketStatus { rssi, snr })
     }
 
-    async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<i32, RadioError> {
+    async fn get_frequency_error(&mut self, bandwidth: Bandwidth) -> Result<(u32, i32), RadioError> {
         let mut buf = [0u8; 3];
         self.read_buffer(Register::RegFreqErrorMsb, &mut buf).await?;
 
@@ -413,7 +413,9 @@ where
             fei_raw as i32
         };
 
-        Ok(fei_to_freq_error_hz(fei_signed, u32::from(bandwidth)))
+        let freq_error_hz = fei_to_freq_error_hz(fei_signed, u32::from(bandwidth));
+
+        Ok((fei_raw, freq_error_hz))
     }
 
     async fn do_cad(&mut self, _mdltn_params: &ModulationParams) -> Result<(), RadioError> {

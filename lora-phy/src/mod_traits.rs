@@ -97,7 +97,7 @@ pub trait RadioKind {
     /// Get the frequency error (in Hz) of the last received packet, given the
     /// channel bandwidth it was received with. Only supported on sx127x-family chips;
     /// other chip kinds inherit this default and return `FrequencyErrorUnsupported`.
-    async fn get_frequency_error(&mut self, _bandwidth: Bandwidth) -> Result<i32, RadioError> {
+    async fn get_frequency_error(&mut self, _bandwidth: Bandwidth) -> Result<(u32, i32), RadioError> {
         Err(RadioError::FrequencyErrorUnsupported)
     }
     /// Perform a channel activity detection operation
