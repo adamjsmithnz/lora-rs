@@ -302,3 +302,17 @@ impl CADSymbols {
         self as u8
     }
 }
+
+/// Fallback mode after TX/RX
+#[derive(Clone, Copy)]
+pub enum FallbackMode {
+    Fs = 0x40,
+    StandbyXosc = 0x30,
+    StandbyRc = 0x20,
+}
+
+impl FallbackMode {
+    pub fn value(self) -> u8 {
+        self as u8
+    }
+}

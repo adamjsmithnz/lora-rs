@@ -224,6 +224,10 @@ where
                 Self::timeout_3(timeout),
             ];
             self.intf.write(&op_code_and_tcxo_control, false).await?;
+
+            // Enable TCXO fallback
+            self.set_rx_tx_fallback_mode(FallbackMode::StandbyXosc).await?;
+
             // Re-run calibration now that chip knows that it's running from TCXO
             self.intf
                 .write(&[OpCode::Calibrate.value(), 0b0111_1111], false)
@@ -950,6 +954,25 @@ where
 
         // If none of the specific conditions are met, return None to indicate no IRQ state change.
         Ok(None)
+    }
+}
+
+impl<SPI, IV, C> Sx126x<SPI, IV, C>
+where
+    SPI: SpiDevice<u8>,
+    IV: InterfaceVariant,
+    C: Sx126xVariant,
+{
+    /// Set RX/TX fallback mode
+    ///
+    /// Configures what mode the radio enters after TX or RX completes.
+    ///
+    /// # Arguments
+    /// * `fallback_mode` - Mode to enter (StandbyRc, StandbyXosc, or Fs)
+    pub async fn set_rx_tx_fallback_mode(&mut self, fallback_mode: FallbackMode) -> Result<(), RadioError> {
+        let opcode = OpCode::SetTxFallbackMode.value();
+        let cmd = [opcode, fallback_mode.value()];
+        self.intf.write(&cmd, false).await
     }
 }
 
